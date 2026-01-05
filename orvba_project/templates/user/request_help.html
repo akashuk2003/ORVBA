@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h4>🚑 Emergency Assistance</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Allow location access to detect your position.</p>
+                
+                <div id="location-status" class="alert alert-info">
+                    Detecting location...
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label>Select Service Needed:</label>
+                        {{ form.service_type }}
+                    </div>
+
+                    {{ form.latitude }}
+                    {{ form.longitude }}
+                    {{ form.address }}  <button type="submit" id="submit-btn" class="btn btn-danger w-100" disabled>
+                        Request Help
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const statusDiv = document.getElementById("location-status");
+    const latInput = document.getElementById("id_latitude");
+    const lngInput = document.getElementById("id_longitude");
+    const addrInput = document.getElementById("id_address"); 
+    const btn = document.getElementById("submit-btn");
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            statusDiv.innerHTML = "📡 Contacting GPS Satellites...";
+            statusDiv.className = "alert alert-info";
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            statusDiv.innerHTML = "Geolocation is not supported by this browser.";
+            statusDiv.className = "alert alert-danger";
+        }
+    }
+
+    function showPosition(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        // 1. Always fill the technical coordinates first (The backup)
+        latInput.value = lat;
+        lngInput.value = lng;
+        
+        // Default the address to GPS in case the API fails below
+        const gpsString = `Near GPS Location: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        if(addrInput) addrInput.value = gpsString; 
+
+        // 2. Try to find a human-readable name
+        statusDiv.innerHTML = "📍 Coordinates found. Looking for road name...";
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.display_name) {
+                    // SUCCESS: We found a real name
+                    if(addrInput) addrInput.value = data.display_name;
+                    statusDiv.innerHTML = "<strong>Location Locked:</strong> " + data.display_name;
+                    statusDiv.className = "alert alert-success";
+                } else {
+                    // CASE: API worked, but this spot has no name
+                    statusDiv.innerHTML = "<strong>Location Locked:</strong> Unnamed Road (Using GPS Coords)";
+                    statusDiv.className = "alert alert-warning";
+                }
+            })
+            .catch(error => {
+                // CASE: Internet error or API down
+                console.log("Address lookup failed, sticking to GPS coords.");
+                statusDiv.innerHTML = "<strong>Location Locked:</strong> (Address lookup failed, using GPS)";
+                statusDiv.className = "alert alert-warning";
+            })
+            .finally(() => {
+                // 3. Always enable the button
+                btn.disabled = false;
+            });
+    }
+
+    function showError(error) {
+        let msg = "Unknown Error";
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                msg = "User denied the request for Geolocation.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                msg = "Location information is unavailable.";
+                break;
+            case error.TIMEOUT:
+                msg = "The request to get user location timed out.";
+                break;
+        }
+        statusDiv.className = "alert alert-danger";
+        statusDiv.innerHTML = "<strong>Error:</strong> " + msg;
+    }
+
+    // Auto-run on page load
+    window.onload = getLocation;
+</script>
+{% endblock %}

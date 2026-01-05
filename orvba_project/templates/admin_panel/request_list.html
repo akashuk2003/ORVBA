@@ -1,0 +1,57 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block content %}
+<h2>Monitor Service Requests</h2>
+<hr>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Service Type</th>
+                        <th>Assigned Mechanic</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td>#{{ req.id }}</td>
+                        <td>{{ req.created_at|date:"M d, Y H:i" }}</td>
+                        <td>{{ req.customer.username }}</td>
+                        <td>{{ req.service_type }}</td>
+                        <td>
+                            {% if req.mechanic %}
+                                {{ req.mechanic.username }}
+                            {% else %}
+                                <span class="text-danger">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if req.status == 'Pending' %}
+                                <span class="badge bg-warning text-dark">{{ req.status }}</span>
+                            {% elif req.status == 'Accepted' %}
+                                <span class="badge bg-info text-dark">{{ req.status }}</span>
+                            {% elif req.status == 'Completed' %}
+                                <span class="badge bg-success">{{ req.status }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ req.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No service requests yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

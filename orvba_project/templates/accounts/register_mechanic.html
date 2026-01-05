@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4>Mechanic Partner Registration</h4>
+            </div>
+            <div class="card-body">
+                <p class="alert alert-info small">
+                    Join our network! Admin approval is required before you can accept requests.
+                </p>
+                
+                <div id="location-status" class="alert alert-secondary d-flex justify-content-between align-items-center">
+                    <span>📍 Workshop Location: Not Detected</span>
+                    <button type="button" onclick="getLocation()" class="btn btn-sm btn-outline-dark">
+                        Detect Location
+                    </button>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        {% for field in form %}
+                            {% if not field.is_hidden %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    {% for field in form %}
+                        {% if field.is_hidden %}
+                            {{ field }}
+                        {% endif %}
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn-success w-100 mt-3">Submit for Approval</button>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                Already a partner? <a href="{% url 'login' %}">Login here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const statusDiv = document.getElementById("location-status");
+    const latInput = document.getElementById("id_latitude");
+    const lngInput = document.getElementById("id_longitude");
+    const addressInput = document.getElementById("id_address"); // The textarea
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            statusDiv.innerHTML = "<span>📡 Detecting Workshop Location...</span>";
+            statusDiv.className = "alert alert-info d-flex justify-content-between align-items-center";
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function showPosition(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        // 1. Fill Hidden Coordinates
+        latInput.value = lat;
+        lngInput.value = lng;
+        
+        // 2. Fetch Readable Address (Auto-fill the address box!)
+        statusDiv.innerHTML = "<span>📍 Getting Address Name...</span>";
+        
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.display_name) {
+                    // Update the text area with the found address
+                    addressInput.value = data.display_name;
+                    
+                    // Update Status Bar
+                    statusDiv.innerHTML = "<span>✅ Location Locked & Address Filled</span>";
+                    statusDiv.className = "alert alert-success d-flex justify-content-between align-items-center";
+                }
+            })
+            .catch(error => {
+                console.log("Address lookup failed.");
+                statusDiv.innerHTML = "<span>⚠️ GPS Coordinates Saved (Please type address manually)</span>";
+                statusDiv.className = "alert alert-warning d-flex justify-content-between align-items-center";
+            });
+    }
+
+    function showError(error) {
+        statusDiv.innerHTML = "<span>❌ Error: Access Denied. Please enable location.</span>";
+        statusDiv.className = "alert alert-danger";
+    }
+
+    // Optional: Auto-run on load
+    window.onload = getLocation;
+</script>
+{% endblock %}
